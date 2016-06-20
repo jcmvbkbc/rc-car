@@ -7,12 +7,13 @@
 #include "espconn.h"
 #include <errno.h>
 #include <stdlib.h>
+#include "hw_timer.h"
 
 #define USE_GPIO1
 
 static volatile unsigned pwm_duty[2];
 
-static void pwm_timer_fn(void *arg)
+static void pwm_timer_fn(void)
 {
 	static unsigned cycle = 0;
 
@@ -32,20 +33,32 @@ static void pwm_timer_fn(void *arg)
 
 
 static volatile int pwm_steer;
-static os_timer_t steer_off_timer;
+static unsigned steer_off_counter;
 
-static void steer_timer_fn(void *arg)
+static void steer_timer_fn(void)
 {
-	os_timer_arm_us(&steer_off_timer,
-			1000 + (pwm_steer + 10) * 1000 / 19, 0);
+	steer_off_counter = pwm_steer + 30;
 	GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 2);
 }
 
-static void steer_off_timer_fn(void *arg)
+static void steer_off_timer_fn(void)
 {
 	GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 2);
 }
 
+
+static void hw_timer_fn(void)
+{
+	static unsigned steer_counter;
+
+	pwm_timer_fn();
+	if (steer_off_counter && !--steer_off_counter)
+		steer_off_timer_fn();
+	if (++steer_counter == 400) {
+		steer_counter = 0;
+		steer_timer_fn();
+	}
+}
 
 #ifdef USE_GPIO1
 
@@ -181,10 +194,7 @@ void user_init()
 #endif
 	udp_init();
 
-	os_timer_setfn(&pwm_timer, pwm_timer_fn, NULL);
-	os_timer_arm_us(&pwm_timer, 100, 1);
-
-	os_timer_setfn(&steer_timer, steer_timer_fn, NULL);
-	os_timer_setfn(&steer_off_timer, steer_off_timer_fn, NULL);
-	os_timer_arm(&steer_timer, 10, 1);
+	hw_timer_init(FRC1_SOURCE, 1);
+	hw_timer_set_func(hw_timer_fn);
+	hw_timer_arm(US_TO_RTC_TIMER_TICKS(10));
 }
