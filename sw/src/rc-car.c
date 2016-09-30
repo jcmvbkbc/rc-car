@@ -21,14 +21,14 @@ static void pwm_timer_fn(void)
 		cycle = 0;
 
 	if (cycle < pwm_duty[0])
-		GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1);
-	else
 		GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 1);
+	else
+		GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 1);
 
 	if (cycle < pwm_duty[1])
-		GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 4);
-	else
 		GPIO_REG_WRITE(GPIO_OUT_W1TC_ADDRESS, 4);
+	else
+		GPIO_REG_WRITE(GPIO_OUT_W1TS_ADDRESS, 4);
 }
 
 
